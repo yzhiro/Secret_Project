@@ -3,37 +3,120 @@
   <head>
     <meta charset="utf-8" />
     <title>Minato-ku 3D Tiles + Firebase</title>
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css"/>
-<style>
-  /* ───────── InfoBox 拡張 ───────── */
-  .cesium-infoBox {
-    max-height: 80vh !important;      /* 画面高の 80 % まで使う */
-    overflow: hidden;                 /* 親要素は隠す */
-  }
-  .cesium-infoBox-iframe {
-    height: 100% !important;          /* 固定 125 px を解除 */
-  }
-  /* iframe 内 <body> に自動スクロールを付与 */
-  .cesium-infoBox-iframe body {
-    overflow-y: auto;
-    max-height: 100%;                 /* ビューポート上限までスクロール */
-  }
-</style>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css"
+    />
+    <!-- 既存 <head> に追記（または置き換え） -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
 
+    <style>
+      /* ───────── InfoBox を 3:2 風の比率に拡張 ─────────
+   例：幅 480 px : 高さ 720 px ≒ 2:3（16:24）→ 3:2 を逆転させた比率
+   画面が狭い端末では max-width / max-height が効いて自動縮小
+*/
+      .cesium-infoBox {
+        width: 60vw !important; /* ビューポート幅の 60% */
+        max-width: 720px !important; /* 上限 720px（3:2 の横）*/
+        max-height: 90vh !important; /* 上限 90% 高さ */
+        aspect-ratio: 3 / 2; /* 3:2 を優先的に維持 */
+        overflow: hidden; /* 枠外を隠す */
+      }
+
+      /* InfoBox 内部 iframe の高さ・幅を親に合わせる */
+      .cesium-infoBox-iframe {
+        width: 100% !important;
+        height: 100% !important;
+        border: none;
+      }
+
+      /* iframe 内 body も全文スクロール可に */
+      .cesium-infoBox-iframe body {
+        overflow-y: auto;
+        max-height: 100%;
+        margin: 0;
+      }
+    </style>
   </head>
-  <body>
-    <h2 id="status">ログインしてください</h2>
+  <body
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-200 via-indigo-200 to-green-200"
+  >
+    <!-- ログインカード -->
+    <div
+      class="w-full max-w-sm bg-white/80 backdrop-blur shadow-xl rounded-2xl p-8 space-y-6"
+    >
+      <h2 id="status" class="text-center text-xl font-semibold text-indigo-700">
+        ログインしてください
+      </h2>
 
-    <input id="mail" type="email" placeholder="e-mail">
-    <input id="pass" type="password" placeholder="password">
-    <button id="signup">新規登録</button>
-    <button id="login">ログイン</button>
-    <button id="glogin">Google でログイン</button>
-    <button id="logout" hidden>ログアウト</button>
+      <!-- メール + パスワード入力 -->
+      <div class="space-y-4" id="emailForm">
+        <input
+          id="mail"
+          type="email"
+          placeholder="E-mail"
+          class="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-300"
+        />
+        <input
+          id="pass"
+          type="password"
+          placeholder="Password"
+          class="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-300"
+        />
 
-    <div id="cesiumContainer"></div>
+        <div class="flex gap-2">
+          <button
+            id="signup"
+            class="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 rounded-lg transition"
+          >
+            新規登録
+          </button>
+          <button
+            id="login"
+            class="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-2 rounded-lg transition"
+          >
+            ログイン
+          </button>
+        </div>
+      </div>
 
+      <!-- 区切り線 -->
+      <div class="flex items-center gap-4">
+        <hr class="flex-1 border-gray-300" />
+        <span class="text-gray-500 text-sm">or</span>
+        <hr class="flex-1 border-gray-300" />
+      </div>
+
+      <!-- Google ログイン -->
+      <button
+        id="glogin"
+        class="w-full flex items-center justify-center gap-2 bg-white border rounded-lg py-2 hover:bg-gray-50 transition"
+      >
+        <img
+          src="https://www.svgrepo.com/show/475656/google-color.svg"
+          class="w-5 h-5"
+          alt="Google"
+        />
+        <span class="font-medium text-gray-700">Google でログイン</span>
+      </button>
+
+      <!-- ログアウト（認証後に表示） -->
+      <button
+        id="logout"
+        hidden
+        class="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2 rounded-lg transition"
+      >
+        ログアウト
+      </button>
+    </div>
+
+    <!-- Cesium 描画領域は別途ここに -->
+    <div id="cesiumContainer" class="fixed inset-0 z-[-1]"></div>
+
+    <!-- メインスクリプト -->
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
