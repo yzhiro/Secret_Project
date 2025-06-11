@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Minato-ku 3D Tiles + Firebase</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css"/>
+<style>
+  /* ───────── InfoBox 拡張 ───────── */
+  .cesium-infoBox {
+    max-height: 80vh !important;      /* 画面高の 70 % まで使う */
+    overflow: hidden;                 /* 親要素は隠す */
+  }
+  .cesium-infoBox-iframe {
+    height: 100% !important;          /* 固定 125 px を解除 */
+  }
+  /* iframe 内 <body> に自動スクロールを付与 */
+  .cesium-infoBox-iframe body {
+    overflow-y: auto;
+    max-height: 100%;                 /* ビューポート上限までスクロール */
+  }
+</style>
+
+  </head>
+  <body>
+    <h2 id="status">ログインしてください</h2>
+
+    <input id="mail" type="email" placeholder="e-mail">
+    <input id="pass" type="password" placeholder="password">
+    <button id="signup">新規登録</button>
+    <button id="login">ログイン</button>
+    <button id="glogin">Google でログイン</button>
+    <button id="logout" hidden>ログアウト</button>
+
+    <div id="cesiumContainer"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
