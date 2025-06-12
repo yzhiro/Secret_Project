@@ -92,11 +92,12 @@
 
       <!-- Google ログイン -->
 <button id="glogin"
-        class="w-1/4 flex items-center justify-center gap-2 bg-white border rounded-lg py-0.5 hover:bg-gray-50 transition">
-  <img src="/img/google-color.svg"
-       class="w-4 h-4" alt="Google"/>
-  <span class="text-xs font-medium text-gray-700">Google</span>
+        class="col-span-1 aspect-square bg-white border rounded-lg flex flex-col items-center justify-center hover:bg-gray-50 transition">
+  <!-- ↓ ここを変更 -->
+  <img src="/img/google-color.svg?v=2" style="width:12px;height:12px" alt="Google"/>
+  <span class="text-[0.55rem] mt-1 font-medium text-gray-700">Google</span>
 </button>
+
 
 
       <!-- ログアウト（認証後に表示） -->

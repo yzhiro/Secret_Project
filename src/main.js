@@ -40,7 +40,7 @@ onAuthStateChanged(auth, async user => {
     ui.signup.hidden = ui.login.hidden = ui.gLogin.hidden = true;
     await startCesium('cesiumContainer');
   } else {
-    ui.status.textContent = 'ログインしてください';
+    ui.status.textContent = 'login for secret project';
     ui.logout.hidden = true;
     ui.signup.hidden = ui.login.hidden = ui.gLogin.hidden = false;
     ui.cesium.innerHTML = ''; // ログアウトでビュー破棄
