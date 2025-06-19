@@ -1,17 +1,21 @@
 import * as Cesium from "cesium";
-import { getWeather } from './weather.js'; // 天気取得モジュールをインポート
+// 外部モジュールをインポート
+import { getWeather } from './weather.js'; 
+import { getBusLocations } from './transit.js';
 
 // --- グローバル変数 ---
-let weatherParticleSystem = null;
+let weatherParticleSystem = null; // 天気エフェクトを管理
+const busEntities = new Map();    // バス情報を管理
 
 // --- 天気関連の関数 ---
 async function updateWeatherEffects(viewer) {
   const MINATO_KU_LAT = 35.6580;
   const MINATO_KU_LON = 139.7516;
   const weather = await getWeather(MINATO_KU_LAT, MINATO_KU_LON);
-
   const widget = document.getElementById('weather-widget');
-  if (widget && weather) {
+  if (!widget) return;
+
+  if (weather) {
     widget.innerHTML = `
       <div class="flex items-center gap-2">
         <img src="${weather.iconUrl}" alt="${weather.description}" class="w-12 h-12">
@@ -21,8 +25,10 @@ async function updateWeatherEffects(viewer) {
         </div>
       </div>
     `;
-  } else if (widget) {
+    widget.classList.remove('hidden');
+  } else {
     widget.innerHTML = `<p>天気情報の取得に失敗</p>`;
+    widget.classList.remove('hidden');
   }
   
   if (weatherParticleSystem) {
@@ -35,23 +41,13 @@ async function updateWeatherEffects(viewer) {
       viewer.scene.skyAtmosphere.hueShift = -0.97;
       viewer.scene.skyAtmosphere.saturationShift = -0.4;
       viewer.scene.skyAtmosphere.brightnessShift = -0.33;
-      weatherParticleSystem = new Cesium.ParticleSystem({
-        modelMatrix: Cesium.Matrix4.fromTranslation(viewer.camera.position),
-        speed: -15.0, lifetime: 1.5, emitter: new Cesium.BoxEmitter(new Cesium.Cartesian3(0.0, 0.0, 100.0)),
-        size: 5.0, image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAFUlEQVQYV2NkwAJuZmBgYMADgZ8GAHqXAx8+p32SAAAAAElFTkSuQmCC',
-        emissionRate: 2000.0,
-      });
+      weatherParticleSystem = new Cesium.ParticleSystem({ modelMatrix: Cesium.Matrix4.fromTranslation(viewer.camera.position), speed: -15.0, lifetime: 1.5, emitter: new Cesium.BoxEmitter(new Cesium.Cartesian3(0.0, 0.0, 100.0)), size: 5.0, image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAFUlEQVQYV2NkwAJuZmBgYMADgZ8GAHqXAx8+p32SAAAAAElFTkSuQmCC', emissionRate: 2000.0 });
       break;
     case 'Snow':
       viewer.scene.skyAtmosphere.hueShift = -0.8;
       viewer.scene.skyAtmosphere.saturationShift = -0.7;
       viewer.scene.skyAtmosphere.brightnessShift = -0.33;
-      weatherParticleSystem = new Cesium.ParticleSystem({
-        modelMatrix: Cesium.Matrix4.fromTranslation(viewer.camera.position),
-        speed: -1.0, lifetime: 15.0, emitter: new Cesium.BoxEmitter(new Cesium.Cartesian3(0.0, 0.0, 100.0)),
-        size: 8.0, image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAKtJREFUOE9jZKAQMJKggb8/h9F/s4AowMvLyz8DPlW2wP/g/z8Bwy4YMWLEr4E2D0D8H4b/Gci4QYyJkQxMhP8f/v//AcP/6L8YMJDx//9/sIIXgqH/gUExiP8y/v//L6DiB6L//3/x/2cY/m/4f+EPg4H/B2L+D2L+D2I+ROGfMggUQ3p6Ov+DMiCSpqam/w9kXGEDs4AowMjISGACiAIAQpAxI2xASc4EALs5RST1rZJvAAAAAElFTkSuQmCC',
-        emissionRate: 200.0, updateCallback: (p) => { p.position.x += Cesium.Math.randomBetween(-1.0, 1.0); }
-      });
+      weatherParticleSystem = new Cesium.ParticleSystem({ modelMatrix: Cesium.Matrix4.fromTranslation(viewer.camera.position), speed: -1.0, lifetime: 15.0, emitter: new Cesium.BoxEmitter(new Cesium.Cartesian3(0.0, 0.0, 100.0)), size: 8.0, image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAKtJREFUOE9jZKAQMJKggb8/h9F/s4AowMvLyz8DPlW2wP/g/z8Bwy4YMWLEr4E2D0D8H4b/Gci4QYyJkQxMhP8f/v//AcP/6L8YMJDx//9/sIIXgqH/gUExiP8y/v//L6DiB6L//3/x/2cY/m/4f+EPg4H/B2L+D2L+D2I+ROGfMggUQ3p6Ov+DMiCSpqam/w9kXGEDs4AowMjISGACiAIAQpAxI2xASc4EALs5RST1rZJvAAAAAElFTkSuQmCC', emissionRate: 200.0, updateCallback: (p) => { p.position.x += Cesium.Math.randomBetween(-1.0, 1.0); } });
       break;
     default:
       viewer.scene.skyAtmosphere.hueShift = 0.0;
@@ -59,9 +55,32 @@ async function updateWeatherEffects(viewer) {
       viewer.scene.skyAtmosphere.brightnessShift = 0.0;
       break;
   }
+  if (weatherParticleSystem) viewer.scene.primitives.add(weatherParticleSystem);
+}
 
-  if (weatherParticleSystem) {
-    viewer.scene.primitives.add(weatherParticleSystem);
+// --- バス関連の関数 ---
+async function updateBusEntities(viewer) {
+  const busData = await getBusLocations();
+  if (!busData) return;
+  const visibleBusIds = new Set();
+  busData.forEach(bus => {
+    visibleBusIds.add(bus.id);
+    const position = Cesium.Cartesian3.fromDegrees(bus.lon, bus.lat, 20);
+    const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(90 - bus.azimuth), 0, 0));
+    const existingBus = busEntities.get(bus.id);
+    if (existingBus) {
+      existingBus.position = position;
+      existingBus.orientation = orientation;
+    } else {
+      const newBus = viewer.entities.add({ id: bus.id, position, orientation, model: { uri: '/models/bus.glb', minimumPixelSize: 64 }, label: { text: `[${bus.busNumber}]`, font: '12pt sans-serif', pixelOffset: new Cesium.Cartesian2(0, -50) } });
+      busEntities.set(bus.id, newBus);
+    }
+  });
+  for (const [id, entity] of busEntities.entries()) {
+    if (!visibleBusIds.has(id)) {
+      viewer.entities.remove(entity);
+      busEntities.delete(id);
+    }
   }
 }
 
@@ -86,7 +105,6 @@ function createDescriptionHtml(pickedFeature, shops) {
   let featureHtml = '';
   try {
     const keys = pickedFeature?.getPropertyIds?.() || [];
-    const nameKeys = ["名称", "name", "建物名称"];
     const usageKeys = ["usage", "用途"];
     const getPropertySafely = (keys, candidates) => {
       const key = candidates.find(c => keys.includes(c));
@@ -97,7 +115,6 @@ function createDescriptionHtml(pickedFeature, shops) {
   } catch (e) {
     console.error("地物情報の処理中にエラー:", e);
   }
-
   let shopsHtml = '<h3><br>周辺の飲食店情報</h3>';
   if (shops && shops.length > 0) {
     shopsHtml += `<ul style="list-style:none; padding:0; margin-top:1em;">`;
@@ -116,9 +133,9 @@ function createDescriptionHtml(pickedFeature, shops) {
   } else {
     shopsHtml += `<p>周辺に登録店舗は見つかりませんでした。</p>`;
   }
-
   return shopsHtml + featureHtml;
 }
+
 
 // --- メインのCesium初期化・実行関数 ---
 export async function startCesium(containerId) {
@@ -128,9 +145,14 @@ export async function startCesium(containerId) {
     timeline: false, animation: false, infoBox: true,
   });
 
-  // 天気効果を初期化し、10分ごとに更新
-  await updateWeatherEffects(viewer);
-  setInterval(() => updateWeatherEffects(viewer), 10 * 60 * 1000);
+  // --- 各機能の呼び出し ---
+  // 天気機能
+  updateWeatherEffects(viewer);
+  setInterval(() => updateWeatherEffects(viewer), 10 * 60 * 1000); // 10分ごとに更新
+  // バス機能
+  updateBusEntities(viewer);
+  setInterval(() => updateBusEntities(viewer), 30 * 1000); // 30秒ごとに更新
+
 
   // 3Dタイルセットの読み込み
   const tileUrls = [
@@ -145,7 +167,7 @@ export async function startCesium(containerId) {
     console.error("タイルセットの読み込みに失敗:", error);
   }
 
-  // ★★★ ここに完全なクリックイベントを実装 ★★★
+  // クリックイベント
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction(async (click) => {
     const pickedFeature = viewer.scene.pick(click.position);
@@ -165,7 +187,6 @@ export async function startCesium(containerId) {
     const cartographic = Cesium.Cartographic.fromCartesian(worldPosition);
     const latitude = Cesium.Math.toDegrees(cartographic.latitude);
     const longitude = Cesium.Math.toDegrees(cartographic.longitude);
-
     const shops = await fetchHotpepperData(latitude, longitude);
     viewer.selectedEntity.description = createDescriptionHtml(pickedFeature, shops);
     viewer.scene.requestRender();
