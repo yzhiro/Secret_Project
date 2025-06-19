@@ -91,14 +91,20 @@
       </div>
 
       <!-- Google ログイン -->
-<button id="glogin"
-        class="col-span-1 aspect-square bg-white border rounded-lg flex flex-col items-center justify-center hover:bg-gray-50 transition">
-  <!-- ↓ ここを変更 -->
-  <img src="/img/google-color.svg?v=2" style="width:12px;height:12px" alt="Google"/>
-  <span class="text-[0.55rem] mt-1 font-medium text-gray-700">Google</span>
-</button>
-
-
+      <button
+        id="glogin"
+        class="col-span-1 aspect-square bg-white border rounded-lg flex flex-col items-center justify-center hover:bg-gray-50 transition"
+      >
+        <!-- ↓ ここを変更 -->
+        <img
+          src="/img/google-color.svg?v=2"
+          style="width: 12px; height: 12px"
+          alt="Google"
+        />
+        <span class="text-[0.55rem] mt-1 font-medium text-gray-700"
+          >Google</span
+        >
+      </button>
 
       <!-- ログアウト（認証後に表示） -->
       <button
@@ -114,6 +120,13 @@
     <div id="cesiumContainer" class="fixed inset-0 z-[-1]"></div>
 
     <!-- メインスクリプト -->
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/src/main.js">
+      <div
+        id="weather-widget"
+        class="fixed top-4 left-4 bg-black/50 text-white p-4 rounded-lg shadow-lg backdrop-blur-sm z-10"
+      >
+        <p>天気を取得中...</p>
+      </div>
+    </script>
   </body>
 </html>
