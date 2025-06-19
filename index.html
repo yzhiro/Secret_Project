@@ -7,33 +7,24 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/cesium@1.118/Build/Cesium/Widgets/widgets.css"
     />
-    <!-- 既存 <head> に追記（または置き換え） -->
     <link
       href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.4/dist/tailwind.min.css"
       rel="stylesheet"
     />
 
     <style>
-      /* ───────── InfoBox を 3:2 風の比率に拡張 ─────────
-   例：幅 480 px : 高さ 720 px ≒ 2:3（16:24）→ 3:2 を逆転させた比率
-   画面が狭い端末では max-width / max-height が効いて自動縮小
-*/
       .cesium-infoBox {
-        width: 60vw !important; /* ビューポート幅の 60% */
-        max-width: 720px !important; /* 上限 720px（3:2 の横）*/
-        max-height: 90vh !important; /* 上限 90% 高さ */
-        aspect-ratio: 3 / 2; /* 3:2 を優先的に維持 */
-        overflow: hidden; /* 枠外を隠す */
+        width: 60vw !important;
+        max-width: 720px !important;
+        max-height: 90vh !important;
+        aspect-ratio: 3 / 2;
+        overflow: hidden;
       }
-
-      /* InfoBox 内部 iframe の高さ・幅を親に合わせる */
       .cesium-infoBox-iframe {
         width: 100% !important;
         height: 100% !important;
         border: none;
       }
-
-      /* iframe 内 body も全文スクロール可に */
       .cesium-infoBox-iframe body {
         overflow-y: auto;
         max-height: 100%;
@@ -44,7 +35,6 @@
   <body
     class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-200 via-indigo-200 to-green-200"
   >
-    <!-- ログインカード -->
     <div
       class="w-full max-w-sm bg-white/80 backdrop-blur shadow-xl rounded-2xl p-8 space-y-6"
     >
@@ -52,7 +42,6 @@
         login for secret project
       </h2>
 
-      <!-- メール + パスワード入力 -->
       <div class="space-y-4" id="emailForm">
         <input
           id="mail"
@@ -83,30 +72,24 @@
         </div>
       </div>
 
-      <!-- 区切り線 -->
       <div class="flex items-center gap-4">
         <hr class="flex-1 border-gray-300" />
         <span class="text-gray-500 text-sm">or</span>
         <hr class="flex-1 border-gray-300" />
       </div>
 
-      <!-- Google ログイン -->
       <button
         id="glogin"
-        class="col-span-1 aspect-square bg-white border rounded-lg flex flex-col items-center justify-center hover:bg-gray-50 transition"
+        class="w-full flex justify-center items-center gap-2 bg-white border rounded-lg py-2 hover:bg-gray-50 transition"
       >
-        <!-- ↓ ここを変更 -->
         <img
           src="/img/google-color.svg?v=2"
-          style="width: 12px; height: 12px"
+          style="width: 18px; height: 18px"
           alt="Google"
         />
-        <span class="text-[0.55rem] mt-1 font-medium text-gray-700"
-          >Google</span
-        >
+        <span class="font-medium text-gray-700">Googleでログイン</span>
       </button>
 
-      <!-- ログアウト（認証後に表示） -->
       <button
         id="logout"
         hidden
@@ -116,17 +99,15 @@
       </button>
     </div>
 
-    <!-- Cesium 描画領域は別途ここに -->
     <div id="cesiumContainer" class="fixed inset-0 z-[-1]"></div>
 
-    <!-- メインスクリプト -->
-    <script type="module" src="/src/main.js">
-      <div
-        id="weather-widget"
-        class="fixed top-4 left-4 bg-black/50 text-white p-4 rounded-lg shadow-lg backdrop-blur-sm z-10"
-      >
-        <p>天気を取得中...</p>
-      </div>
-    </script>
+    <div
+      id="weather-widget"
+      class="fixed top-4 left-4 bg-black/50 text-white p-4 rounded-lg shadow-lg backdrop-blur-sm z-10"
+    >
+      <p>天気を取得中...</p>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
