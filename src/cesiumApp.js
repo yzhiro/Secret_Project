@@ -15,6 +15,49 @@ async function fetchHotpepperData(lat, lng) {
     return [];
   }
 
+  // ★修正点1: 検索条件を絞り込む
+  const params = new URLSearchParams({
+    key: apiKey,
+    lat: lat,
+    lng: lng,
+    range: 2, // 検索範囲を1000mから500mに絞る (1:300m, 2:500m, 3:1000m)
+    count: 10, // 取得件数を10件に明示的に指定
+    order: 4, // 口コミ評価順
+    format: "json",
+  });
+
+  const url = `/api/hotpepper?${params.toString()}`;
+
+  // ★修正点2: 10秒間のタイムアウト処理を追加
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒でタイムアウト
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal // fetchに中断用のシグナルを渡す
+    });
+
+    clearTimeout(timeoutId); // 通信成功時はタイマーを解除
+
+    if (!response.ok) {
+      throw new Error(`APIエラー: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data.results?.shop || [];
+  } catch (error) {
+    clearTimeout(timeoutId); // エラー発生時もタイマーを解除
+
+    if (error.name === 'AbortError') {
+      console.error("ホットペッパーAPIの取得がタイムアウトしました。");
+      alert("店舗情報の取得がタイムアウトしました。ネットワーク環境を確認するか、時間をおいて再度お試しください。");
+    } else {
+      console.error("ホットペッパーAPIの取得に失敗しました:", error);
+      alert(`店舗情報の取得に失敗しました。\n${error.message}`);
+    }
+    return [];
+  }
+}
+
   // Viteプロキシ経由でAPIにリクエストするためのURLを作成
   const params = new URLSearchParams({
     key: apiKey,
@@ -40,7 +83,7 @@ async function fetchHotpepperData(lat, lng) {
     alert(`周辺店舗の取得に失敗しました。\n${error.message}`);
     return [];
   }
-}
+
 
 /**
  * CesiumのInfoBoxに表示するHTMLコンテンツを生成する
@@ -134,6 +177,9 @@ export async function startCesium(containerId) {
     const cartographic = Cesium.Cartographic.fromCartesian(worldPosition);
     const latitude = Cesium.Math.toDegrees(cartographic.latitude);
     const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+
+    console.log(`【デバッグ】クリック座標 -> 緯度: ${latitude}, 経度: ${longitude}`);
+    alert(`【デバッグ】クリック座標 -> 緯度: ${latitude.toFixed(4)}, 経度: ${longitude.toFixed(4)}`);
 
     // APIから周辺店舗データを非同期で取得
     const shops = await fetchHotpepperData(latitude, longitude);
