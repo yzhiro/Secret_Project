@@ -1,5 +1,3 @@
-// src/cesiumApp.js （修正後）
-
 import * as Cesium from "cesium";
 
 /**
@@ -15,29 +13,26 @@ async function fetchHotpepperData(lat, lng) {
     return [];
   }
 
-  // ★修正点1: 検索条件を絞り込む
   const params = new URLSearchParams({
     key: apiKey,
     lat: lat,
     lng: lng,
-    range: 2, // 検索範囲を1000mから500mに絞る (1:300m, 2:500m, 3:1000m)
-    count: 10, // 取得件数を10件に明示的に指定
+    range: 2, // 検索範囲を500mに設定
+    count: 10, // 取得件数を10件に指定
     order: 4, // 口コミ評価順
     format: "json",
   });
 
   const url = `/api/hotpepper?${params.toString()}`;
 
-  // ★修正点2: 10秒間のタイムアウト処理を追加
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒でタイムアウト
 
   try {
     const response = await fetch(url, {
-      signal: controller.signal // fetchに中断用のシグナルを渡す
+      signal: controller.signal
     });
-
-    clearTimeout(timeoutId); // 通信成功時はタイマーを解除
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`APIエラー: ${response.status} ${response.statusText}`);
@@ -45,8 +40,7 @@ async function fetchHotpepperData(lat, lng) {
     const data = await response.json();
     return data.results?.shop || [];
   } catch (error) {
-    clearTimeout(timeoutId); // エラー発生時もタイマーを解除
-
+    clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
       console.error("ホットペッパーAPIの取得がタイムアウトしました。");
       alert("店舗情報の取得がタイムアウトしました。ネットワーク環境を確認するか、時間をおいて再度お試しください。");
@@ -58,33 +52,6 @@ async function fetchHotpepperData(lat, lng) {
   }
 }
 
-  // Viteプロキシ経由でAPIにリクエストするためのURLを作成
-  const params = new URLSearchParams({
-    key: apiKey,
-    lat: lat,
-    lng: lng,
-    range: 3, // 検索範囲 (1: 300m, 2: 500m, 3: 1000m)
-    order: 4, // 口コミ評価順
-    format: "json",
-  });
-
-  // vite.config.js のプロキシ設定に合わせたパス
-  const url = `/api/hotpepper?${params.toString()}`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`APIエラー: ${response.status} ${response.statusText}`);
-    }
-    const data = await response.json();
-    return data.results?.shop || [];
-  } catch (error) {
-    console.error("ホットペッパーAPIの取得に失敗しました:", error);
-    alert(`周辺店舗の取得に失敗しました。\n${error.message}`);
-    return [];
-  }
-
-
 /**
  * CesiumのInfoBoxに表示するHTMLコンテンツを生成する
  * @param {Cesium.Cesium3DTileFeature} pickedFeature - クリックされたフィーチャ
@@ -92,20 +59,16 @@ async function fetchHotpepperData(lat, lng) {
  * @returns {string} - 表示用のHTML文字列
  */
 function createDescriptionHtml(pickedFeature, shops) {
-  // --- 1. 地物自体の属性情報を取得・整形 ---
   const keys = pickedFeature.getPropertyIds();
   const nameKeys = ["名称", "name", "建物名称", "橋梁名称"];
   const usageKeys = ["usage", "用途", "building_purpose", "建物用途"];
-
   const findKey = (candidates) => candidates.find(k => keys.includes(k));
   const name = pickedFeature.getProperty(findKey(nameKeys) || 'gml_id');
   const usage = pickedFeature.getProperty(findKey(usageKeys)) || "";
-
   const allAttributesTable = keys
     .map(key => `<tr><th style="white-space:nowrap; padding-right:1em;">${key}</th><td>${pickedFeature.getProperty(key)}</td></tr>`)
     .join("");
 
-  // --- 2. 周辺店舗情報のHTMLを生成 ---
   let shopsHtml = '<h3><br>周辺の飲食店情報（ホットペッパー）</h3>';
   if (shops.length > 0) {
     shopsHtml += `<ul style="list-style:none; padding:0; margin-top:1em;">`;
@@ -125,7 +88,6 @@ function createDescriptionHtml(pickedFeature, shops) {
     shopsHtml += '<p>周辺に登録されている店舗は見つかりませんでした。</p>';
   }
 
-  // --- 3. 全ての情報を結合して返す ---
   return `
     ${usage ? `<p><b>用途:</b> ${usage}</p>` : ""}
     ${shopsHtml}
@@ -161,11 +123,10 @@ export async function startCesium(containerId) {
     const worldPosition = viewer.scene.pickPosition(click.position);
 
     if (!Cesium.defined(pickedFeature) || !Cesium.defined(worldPosition)) {
-      viewer.selectedEntity = undefined; // 何も選択されていない場合はポップアップを閉じる
+      viewer.selectedEntity = undefined;
       return;
     }
 
-    // 最初に地物の基本情報でポップアップを仮表示
     const nameKey = ["名称", "name", "建物名称", "橋梁名称"].find(k => pickedFeature.getPropertyIds().includes(k));
     const entityName = pickedFeature.getProperty(nameKey || 'gml_id');
     viewer.selectedEntity = new Cesium.Entity({
@@ -173,19 +134,12 @@ export async function startCesium(containerId) {
       description: '周辺情報を検索しています...<br>しばらくお待ちください。',
     });
 
-    // カートesian3座標を緯度経度に変換
     const cartographic = Cesium.Cartographic.fromCartesian(worldPosition);
     const latitude = Cesium.Math.toDegrees(cartographic.latitude);
     const longitude = Cesium.Math.toDegrees(cartographic.longitude);
 
-    console.log(`【デバッグ】クリック座標 -> 緯度: ${latitude}, 経度: ${longitude}`);
-    alert(`【デバッグ】クリック座標 -> 緯度: ${latitude.toFixed(4)}, 経度: ${longitude.toFixed(4)}`);
-
-    // APIから周辺店舗データを非同期で取得
     const shops = await fetchHotpepperData(latitude, longitude);
 
-    // 取得した情報でポップアップの内容を更新
     viewer.selectedEntity.description = createDescriptionHtml(pickedFeature, shops);
-
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 }
