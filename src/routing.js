@@ -11,7 +11,7 @@ export async function getRoute(startCoords, endCoords) {
     return null;
   }
 
-  const profile = 'walking'; // 'walking', 'cycling', 'driving' などが選択可能
+  const profile = "walking"; // 'walking', 'cycling', 'driving' などが選択可能
   const coordinates = `${startCoords.lon},${startCoords.lat};${endCoords.lon},${endCoords.lat}`;
   const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?geometries=geojson&access_token=${apiKey}`;
 

@@ -263,20 +263,26 @@ export async function startCesium(containerId) {
   updateBusEntities(viewer);
   setInterval(() => updateBusEntities(viewer), 30 * 1000); // 30秒ごとにバス位置更新
 
-  // 3Dタイルセットの読み込み (代表的なものに絞り込み)
+  // 3Dタイルセットの非同期読み込み
   const tileUrls = [
     "./13103_minato-ku_pref_2023_3dtiles_mvt_2_op/13103_minato-ku_pref_2023_citygml_2_op_bldg_3dtiles_13103_minato-ku_lod1/tileset.json",
     "./13103_minato-ku_pref_2023_3dtiles_mvt_2_op/13103_minato-ku_pref_2023_citygml_2_op_bldg_3dtiles_13103_minato-ku_lod2/tileset.json",
   ];
-  try {
-    const tilesets = await Promise.all(
-      tileUrls.map((url) => Cesium.Cesium3DTileset.fromUrl(url))
-    );
-    tilesets.forEach((ts) => viewer.scene.primitives.add(ts));
-    if (tilesets.length > 0) await viewer.zoomTo(tilesets[0]);
-  } catch (error) {
-    console.error("タイルセットの読み込みに失敗:", error);
-  }
+
+  tileUrls.forEach((url, index) => {
+    Cesium.Cesium3DTileset.fromUrl(url)
+      .then((tileset) => {
+        viewer.scene.primitives.add(tileset);
+        if (index === 0) {
+          viewer.zoomTo(tileset).catch((error) => {
+            console.error("タイルセットへのズームに失敗:", error);
+          });
+        }
+      })
+      .catch((error) => {
+        console.error(`タイルセットの読み込みに失敗: ${url}`, error);
+      });
+  });
 
   // クリックイベントのハンドラ設定
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -307,53 +313,37 @@ export async function startCesium(containerId) {
     viewer.scene.requestRender();
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-  // 以下を修正・変更
-  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-
   // selectedEntityが変わった時のイベントリスナー
   viewer.selectedEntityChanged.addEventListener(() => {
-    // InfoBoxが閉じた（エンティティの選択が解除された）時の処理
     if (!Cesium.defined(viewer.selectedEntity)) {
       clearRestaurantPins(viewer);
       clearRoute(viewer);
       return;
     }
 
-    // InfoBoxが表示された時の処理
-    // InfoBoxはiframeで構成されているため、その中のdocumentに対してイベントリスナーを設定する必要がある
     const infoBoxIframe = viewer.infoBox.frame;
 
-    // iframeのコンテンツが読み込まれたら、中の要素にアクセスしてイベントを設定
     infoBoxIframe.addEventListener(
       "load",
       () => {
         const iframeDoc = infoBoxIframe.contentDocument;
         if (!iframeDoc) return;
 
-        // iframe内のドキュメントでクリックイベントを監視
         iframeDoc.body.addEventListener("click", (event) => {
-          // クリックされた要素が経路ボタン（class="route-button"を持つ）か確認
           if (event.target && event.target.classList.contains("route-button")) {
             if (!lastClickedCoordinates) {
               alert("始点が選択されていません。地図上をクリックしてください。");
               return;
             }
-            // ボタンのdata属性から目的地の緯度経度を取得
             const endCoords = {
               lon: parseFloat(event.target.dataset.lon),
               lat: parseFloat(event.target.dataset.lat),
             };
-            // 経路描画関数を呼び出し
             drawRoute(viewer, lastClickedCoordinates, endCoords);
           }
         });
       },
       { once: true }
-    ); // リスナーが複数登録されるのを防ぐため、一度だけ実行
+    );
   });
-
-  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-  // 修正ここまで
-  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 }
