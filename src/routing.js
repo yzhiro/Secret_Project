@@ -7,7 +7,10 @@
 export async function getRoute(startCoords, endCoords) {
   const apiKey = import.meta.env.VITE_MAPBOX_TOKEN;
   if (!apiKey) {
-    console.error("Mapboxのアクセストークンが設定されていません。");
+    console.error(
+      "Mapboxのアクセストークンが設定されていません。 .envファイルを確認してください。"
+    );
+    alert("経路探索機能が設定されていません。");
     return null;
   }
 
