@@ -108,6 +108,14 @@
       <p>天気を取得中...</p>
     </div>
 
+    <div id="custom-info-panel" class="fixed bottom-4 right-4 w-full max-w-sm bg-white/90 backdrop-blur-md shadow-2xl rounded-lg p-4 z-10 hidden">
+      <div class="flex justify-between items-center mb-2">
+        <h3 id="info-panel-title" class="text-lg font-bold text-gray-800">情報パネル</h3>
+        <button id="info-panel-close" class="text-gray-500 hover:text-gray-800">&times;</button>
+      </div>
+      <div id="info-panel-content" class="text-gray-700 text-sm max-h-64 overflow-y-auto">
+        </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

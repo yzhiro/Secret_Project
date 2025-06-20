@@ -1,12 +1,15 @@
 import * as Cesium from "cesium";
 // これまで作成した外部モジュールをインポート
-import { getWeather } from './weather.js';
+import { getWeather } from './weather.js'; 
 import { getBusLocations } from './transit.js';
+import { getRoute } from './routing.js'; 
 
 // --- グローバル変数 ---
 let weatherParticleSystem = null; // 天気エフェクトを管理
 const busEntities = new Map();    // バス情報を管理
 let restaurantPinEntities = []; // レストランのピンを管理
+let routeEntity = null; // 表示中の経路を管理
+let lastClickedCoordinates = null; // クリックした地点の座標を保持
 
 // --- 天気関連の関数 ---
 async function updateWeatherEffects(viewer) {
@@ -64,7 +67,7 @@ async function updateBusEntities(viewer) {
   const visibleBusIds = new Set();
   busData.forEach(bus => {
     visibleBusIds.add(bus.id);
-    const position = Cesium.Cartesian3.fromDegrees(bus.lon, bus.lat, 20); // 高度20m
+    const position = Cesium.Cartesian3.fromDegrees(bus.lon, bus.lat, 20);
     const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(90 - bus.azimuth), 0, 0));
     const existingBus = busEntities.get(bus.id);
     if (existingBus) {
@@ -83,10 +86,33 @@ async function updateBusEntities(viewer) {
   }
 }
 
-// --- レストラン関連の関数 ---
+// --- レストラン＆経路関連の関数 ---
 function clearRestaurantPins(viewer) {
   restaurantPinEntities.forEach(entity => viewer.entities.remove(entity));
   restaurantPinEntities = [];
+}
+function clearRoute(viewer) {
+  if (routeEntity) {
+    viewer.entities.remove(routeEntity);
+    routeEntity = null;
+  }
+}
+async function drawRoute(viewer, startCoords, endCoords) {
+  clearRoute(viewer);
+  const routeCoordinates = await getRoute(startCoords, endCoords);
+  if (!routeCoordinates || routeCoordinates.length === 0) {
+    alert("経路が見つかりませんでした。");
+    return;
+  }
+  const positions = routeCoordinates.flat();
+  routeEntity = viewer.entities.add({
+    polyline: {
+      positions: Cesium.Cartesian3.fromDegreesArray(positions),
+      width: 5,
+      material: Cesium.Color.RED,
+      clampToGround: true,
+    },
+  });
 }
 
 function showRestaurantPins(viewer, shops) {
@@ -137,17 +163,22 @@ function createDescriptionHtml(pickedFeature, shops) {
   if (shops?.length > 0) {
     shopsHtml += `<ul style="list-style:none; padding:0; margin-top:1em;">`;
     shopsHtml += shops.map(shop => `
-      <li style="margin-bottom:1em; border-bottom:1px solid #eee; padding-bottom:1em;"><div style="display:flex; gap:1em;">
-        <img src="${shop.photo.pc.s}" alt="${shop.name}" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">
-        <div style="flex:1;"><a href="${shop.urls.pc}" target="_blank" style="font-weight:bold;">${shop.name}</a><p style="font-size:0.8em;">${shop.genre.name}</p></div>
-      </div></li>`).join('');
+      <li style="margin-bottom:1em; border-bottom:1px solid #eee; padding-bottom:1em;">
+        <div style="display:flex; gap:1em; align-items:center;">
+          <img src="${shop.photo.pc.s}" alt="${shop.name}" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">
+          <div style="flex:1;">
+            <a href="${shop.urls.pc}" target="_blank" style="font-weight:bold;">${shop.name}</a>
+            <p style="font-size:0.8em;">${shop.genre.name}</p>
+          </div>
+          <button class="route-button" data-lon="${shop.lng}" data-lat="${shop.lat}" style="padding:4px 8px; background-color:#1890ff; color:white; border:none; border-radius:4px; cursor:pointer;">経路</button>
+        </div>
+      </li>`).join('');
     shopsHtml += `</ul>`;
   } else {
     shopsHtml += `<p>周辺に登録店舗は見つかりませんでした。</p>`;
   }
   return featureHtml + shopsHtml;
 }
-
 
 // --- メインのCesium初期化・実行関数 ---
 export async function startCesium(containerId) {
@@ -178,18 +209,19 @@ export async function startCesium(containerId) {
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction(async (click) => {
     clearRestaurantPins(viewer);
+    clearRoute(viewer);
     const pickedFeature = viewer.scene.pick(click.position);
     const worldPosition = viewer.scene.pickPosition(click.position);
     if (!Cesium.defined(pickedFeature) || !Cesium.defined(worldPosition)) {
       viewer.selectedEntity = undefined;
       return;
     }
-    const nameKey = ["名称", "name", "建物名称"].find(k => pickedFeature.getPropertyIds().includes(k));
-    const entityName = pickedFeature.getProperty(nameKey || 'gml_id') || "周辺情報";
-    viewer.selectedEntity = new Cesium.Entity({ name: entityName, description: '周辺情報を検索しています...<br>お待ちください。' });
     const cartographic = Cesium.Cartographic.fromCartesian(worldPosition);
     const latitude = Cesium.Math.toDegrees(cartographic.latitude);
     const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+    lastClickedCoordinates = { lon: longitude, lat: latitude };
+    const entityName = pickedFeature?.getProperty?.("名称") || "周辺情報";
+    viewer.selectedEntity = new Cesium.Entity({ name: entityName, description: '周辺情報を検索中...' });
     const shops = await fetchHotpepperData(latitude, longitude);
     viewer.selectedEntity.description = createDescriptionHtml(pickedFeature, shops);
     showRestaurantPins(viewer, shops);
@@ -199,6 +231,22 @@ export async function startCesium(containerId) {
   viewer.selectedEntityChanged.addEventListener(() => {
     if (!Cesium.defined(viewer.selectedEntity)) {
       clearRestaurantPins(viewer);
+      clearRoute(viewer);
+    }
+  });
+
+  document.addEventListener('click', function(event) {
+    // InfoBoxの中のボタンか確認
+    if (event.target.classList.contains('route-button')) {
+      if (!lastClickedCoordinates) {
+        alert("始点が選択されていません。地図上をクリックしてください。");
+        return;
+      }
+      const endCoords = {
+        lon: parseFloat(event.target.dataset.lon),
+        lat: parseFloat(event.target.dataset.lat)
+      };
+      drawRoute(viewer, lastClickedCoordinates, endCoords);
     }
   });
 }
