@@ -229,7 +229,7 @@ function createDescriptionHtml(pickedFeature, shops) {
       .map(
         (shop) => `
       <li style="margin-bottom:1em; border-bottom:1px solid #eee; padding-bottom:1em;">
-        <div style="display:flex; gap:1em; align-items:center;">
+        <div style="display:flex; gap:1em; align-items-center;">
           <img src="${shop.photo.pc.s}" alt="${shop.name}" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">
           <div style="flex:1;">
             <a href="${shop.urls.pc}" target="_blank" style="font-weight:bold;">${shop.name}</a>
@@ -259,9 +259,9 @@ export async function startCesium(containerId) {
 
   // --- 各機能の呼び出し ---
   updateWeatherEffects(viewer);
-  setInterval(() => updateWeatherEffects(viewer), 10 * 60 * 1000); // 10分ごとに天気更新
+  setInterval(() => updateWeatherEffects(viewer), 10 * 60 * 1000);
   updateBusEntities(viewer);
-  setInterval(() => updateBusEntities(viewer), 30 * 1000); // 30秒ごとにバス位置更新
+  setInterval(() => updateBusEntities(viewer), 30 * 1000);
 
   // 3Dタイルセットの非同期読み込み
   const tileUrls = [
@@ -274,76 +274,123 @@ export async function startCesium(containerId) {
       .then((tileset) => {
         viewer.scene.primitives.add(tileset);
         if (index === 0) {
-          viewer.zoomTo(tileset).catch((error) => {
-            console.error("タイルセットへのズームに失敗:", error);
-          });
+          viewer
+            .zoomTo(tileset)
+            .catch((error) =>
+              console.error("タイルセットへのズームに失敗:", error)
+            );
         }
       })
-      .catch((error) => {
-        console.error(`タイルセットの読み込みに失敗: ${url}`, error);
-      });
+      .catch((error) =>
+        console.error(`タイルセットの読み込みに失敗: ${url}`, error)
+      );
   });
 
-  // クリックイベントのハンドラ設定
+  // 地図クリック時のイベントハンドラ
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction(async (click) => {
     clearRestaurantPins(viewer);
     clearRoute(viewer);
+
     const pickedFeature = viewer.scene.pick(click.position);
     const worldPosition = viewer.scene.pickPosition(click.position);
     if (!Cesium.defined(pickedFeature) || !Cesium.defined(worldPosition)) {
       viewer.selectedEntity = undefined;
       return;
     }
+
     const cartographic = Cesium.Cartographic.fromCartesian(worldPosition);
-    const latitude = Cesium.Math.toDegrees(cartographic.latitude);
-    const longitude = Cesium.Math.toDegrees(cartographic.longitude);
-    lastClickedCoordinates = { lon: longitude, lat: latitude };
+    lastClickedCoordinates = {
+      lon: Cesium.Math.toDegrees(cartographic.longitude),
+      lat: Cesium.Math.toDegrees(cartographic.latitude),
+    };
+
     const entityName = pickedFeature?.getProperty?.("名称") || "周辺情報";
     viewer.selectedEntity = new Cesium.Entity({
       name: entityName,
       description: "周辺情報を検索中...",
     });
-    const shops = await fetchHotpepperData(latitude, longitude);
+    const shops = await fetchHotpepperData(
+      lastClickedCoordinates.lat,
+      lastClickedCoordinates.lon
+    );
     viewer.selectedEntity.description = createDescriptionHtml(
       pickedFeature,
       shops
     );
     showRestaurantPins(viewer, shops);
-    viewer.scene.requestRender();
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 修正箇所：setTimeoutを使い、時間差でイベント監視を開始
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    setTimeout(() => {
+      console.log(
+        "【デバッグA】0.1秒後にイベントリスナー設定処理を開始します。"
+      );
+      const infoBoxIframe = viewer.infoBox.frame;
+      if (!infoBoxIframe) {
+        console.error("【デバッグエラー】InfoBoxのiframeが見つかりません。");
+        return;
+      }
+      const iframeDoc = infoBoxIframe.contentDocument;
+      if (!iframeDoc || !iframeDoc.body) {
+        console.error(
+          "【デバッグエラー】iframeのdocumentまたはbodyにアクセスできません。"
+        );
+        return;
+      }
+
+      // リスナーが既に設定済みか確認
+      if (iframeDoc.body.dataset.listenerAttached === "true") {
+        console.log(
+          "【デバッグB】リスナーは既に設定済みのため、スキップします。"
+        );
+        return;
+      }
+
+      console.log("【デバッグC】iframeにクリックリスナーを新しく設定します。");
+      iframeDoc.body.addEventListener("click", (event) => {
+        if (event.target && event.target.classList.contains("route-button")) {
+          console.log("【デバッグD】経路ボタンがクリックされました！");
+          if (!lastClickedCoordinates) {
+            alert(
+              "始点が選択されていません。地図上を再度クリックしてください。"
+            );
+            return;
+          }
+          const endCoords = {
+            lon: parseFloat(event.target.dataset.lon),
+            lat: parseFloat(event.target.dataset.lat),
+          };
+          drawRoute(viewer, lastClickedCoordinates, endCoords);
+        }
+      });
+      // リスナーを設定したことを記録
+      iframeDoc.body.dataset.listenerAttached = "true";
+    }, 100); // 100ミリ秒後
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 修正ここまで
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-  // selectedEntityが変わった時のイベントリスナー
+  // InfoBoxが閉じた時（選択解除時）のリスナーリセット処理
   viewer.selectedEntityChanged.addEventListener(() => {
     if (!Cesium.defined(viewer.selectedEntity)) {
       clearRestaurantPins(viewer);
       clearRoute(viewer);
-      return;
+
+      const infoBoxIframe = viewer.infoBox.frame;
+      if (
+        infoBoxIframe &&
+        infoBoxIframe.contentDocument &&
+        infoBoxIframe.contentDocument.body
+      ) {
+        // InfoBoxが閉じられたら、リスナーが設定された記録を消去する
+        infoBoxIframe.contentDocument.body.dataset.listenerAttached = "false";
+        console.log(
+          "【デバッグE】InfoBoxが閉じたため、リスナー設定の記録をリセットしました。"
+        );
+      }
     }
-
-    const infoBoxIframe = viewer.infoBox.frame;
-
-    infoBoxIframe.addEventListener(
-      "load",
-      () => {
-        const iframeDoc = infoBoxIframe.contentDocument;
-        if (!iframeDoc) return;
-
-        iframeDoc.body.addEventListener("click", (event) => {
-          if (event.target && event.target.classList.contains("route-button")) {
-            if (!lastClickedCoordinates) {
-              alert("始点が選択されていません。地図上をクリックしてください。");
-              return;
-            }
-            const endCoords = {
-              lon: parseFloat(event.target.dataset.lon),
-              lat: parseFloat(event.target.dataset.lat),
-            };
-            drawRoute(viewer, lastClickedCoordinates, endCoords);
-          }
-        });
-      },
-      { once: true }
-    );
   });
 }
